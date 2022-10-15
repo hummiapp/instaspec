@@ -30,13 +30,19 @@ Require instaspec in your namespace:
 Define a grammar:
 
 ```clojure
+(def hiccup-grammar
+  '[element (or literal tree)
+    tree (and vector? [tag attrs? element*])
+    literal (or nil? boolean? number? string?)
+    tag keyword?
+    attrs (map-of keyword? any?)])
+```
+
+Create a parser from the grammar:
+
+```clojure
 (def hiccup-parser
-  (is/parser
-    '[element (or literal tree)
-      tree (and vector? [tag attrs? element*])
-      literal (or nil? boolean? number? string?)
-      tag keyword?
-      attrs (map-of keyword? any?)]))
+  (is/parser hiccup-grammar))
 ```
 
 Given some data to parse:
