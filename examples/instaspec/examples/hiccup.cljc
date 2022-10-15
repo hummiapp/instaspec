@@ -1,22 +1,21 @@
 (ns instaspec.examples.hiccup
   (:require
     [clojure.pprint :as pprint]
-    [instaspec.core :as is]
-    [instaspec.malli :as im]))
+    [instaspec.malli :as is]))
 
-(def hiccup-ebnf
+(def hiccup-is
   '[element (or literal tree)
     tree (and vector? [tag attrs? element*])
     literal (or nil? boolean? number? string?)
     tag keyword?
     attrs (map-of keyword? any?)])
 
-(println "** HICCUP EBNF **")
+(println "** HICCUP Registry **")
 (pprint/pprint
-  (im/registry hiccup-ebnf))
+  (is/registry hiccup-is))
 
 (def hiccup-parser
-  (im/parser hiccup-ebnf))
+  (is/parser hiccup-is))
 
 (def svg-data
   [:svg {:viewBox [0 0, 10 10]}
@@ -45,50 +44,17 @@
 ;; -- a system of functions that can dispatch themselves
 ;; unnamed things shouldn't be named (predicates)
 
-(def z '{element ()
-         ;literal identity
-         tree    (fn [acc {:keys [tag attrs? element*]}]
-                   `[~(if (= :circle tag) :rect tag)
-                     ~@(if attrs? [attrs?] [])
-                     ~@(map element element*)])
-         tag     ()
+;; TODO: using `resolve` causes a conflict between parse and rewrite
+;; so using `$` to disambiguate... is there a better way?
+;; TODO: syms is uncommon, will it be O.K.?
+;; TODO: *** can we provide a more semantic ~@(if attrs? [attrs?] []) ???
 
-         })
-
-;; don't want this, it should just dispatch literal and tree
-(defn element [acc [sub-type v]]
-  (if (= sub-type 'tree)
-    (tree v)
-    v))
-
-(defn tree [acc {:keys [tag attrs? element*]}]
+(defn tree$ [{:syms [tag attrs? element*]}]
   `[~(if (= :circle tag)
        :rect tag)
     ~@(if attrs? [attrs?] [])
-    ~@(map element element*)])
+    ~@(map is/rewrite element*)])
 
-
-(defmulti polygonize 'tag)
-(defmethod polygonize :ellipse)
-
-(defmulti depolygonize 'tag)
-(defmethod depolygonize :ellipse)
-
-(defmulti interpolate 'tag)
-(defmethod interpolate [:rect :ellipse])
-(defmethod interpolate [:square :rect])
-(defmethod interpolate [:circle :triangle])
-;; Generally n-ary polygons with curvature?
-(defmethod interpolate [:polygon :polygon])
-
-(im/dfs hiccup-ebnf z)
-
-;; need to decide which matched...
-#_(im/matcher hiccup-ebnf
-            (fn [{:keys [tag attrs? element*]}]
-              (cons tag (recur element*))))
-
-;; would like a substitution pattern
-#_(im/match hiccup-parser
-          '[element (or [literal] tree)
-            tree [tag element*]])
+(println "** REWRITE **")
+(pprint/pprint
+  (is/rewrite (hiccup-parser svg-data)))

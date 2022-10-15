@@ -32,12 +32,13 @@ Define a grammar:
 ```clojure
 (def hiccup-parser
   (is/parser
-    '[hiccup (or tree literal)
-      tree [tag attrs? hiccup*]
+    '[element (or literal tree)
+      tree (and vector? [tag attrs? element*])
       literal (or nil? boolean? number? string?)
       tag keyword?
-      attrs map?]))
+      attrs (map-of keyword? any?)]))
 ```
+
 Given some data to parse:
 
 ```clojure
@@ -49,34 +50,63 @@ Given some data to parse:
     [:rect {:width 2, :height 3}]]])
 ```
 
-Parse some hiccup:
+Parse the data:
 
 ```clojure
 (hiccup-parser svg-data)
 ;=>
-{tag     :svg,
- attrs?  {:viewBox [0 0 10 10]},
- hiccup* ["hello world!"
-          {tag     :g,
-           attrs?  nil,
-           hiccup* [{tag     :circle,
-                     attrs?  {:cx 1, :cy 2},
-                     hiccup* []}
-                    {tag     :rect,
-                     attrs?  {:width 2, :height 3},
-                     hiccup* []}]}]}
+[tree {tag :svg,
+       attrs? {:viewBox [0 0 10 10]},
+       element* [[literal "hello world!"]
+                 [tree {tag :g,
+                        attrs? nil,
+                        element* [[tree {tag :circle,
+                                         attrs? {:cx 1, :cy 2},
+                                         element* []}]
+      [tree {tag :rect,
+             attrs? {:width 2, :height 3},
+             element* []}]]}]]}]
 ```
 
 ### Transforming
 
-Intaspec creates bindings based upon the grammar definition so that we can conveniently transform the parse results into the desired output:
+`rewrite` is a tiny scaffold for transforming the parse results into the desired output.
+You write functions named for the rules in your grammar,
+and they will be called in a trasformation traversal.
 
 ```clojure
-;; TBD
-(is/match hiccup-parser svg-data t)
+(defn tree$ [{:syms [tag attrs? element*]} rewrite]
+  `[~(if (= :circle tag)
+       :rect tag)
+    ~@(if attrs? [attrs?] [])
+    ~@(map rewrite element*)])
+(is/rewrite (hiccup-parser svg-data))
 ;=>
-100
+[:svg {:viewBox [0 0 10 10]}
+ "hello world!"
+ [:g [:rect {:cx 1, :cy 2}] [:rect {:width 2, :height 3}]]]
 ```
+
+Above we replaced the `:circle` with a `:rect`.
+The naming of `tree$` is a convention that `rewrite` uses to identify the transformation for `tree`.
+The trailing `$` indicates that the function is for transformation, not a predicate!
+
+The usage of `~@` is regular Clojure templating.
+
+Rewrite functions take as input a map of symbols from the grammar, and return a replacement.
+
+If no rewrite function is present for a name `identity` is used instead.
+
+TODO: would be more explicit to provide functions instead of resolving them, but would also be more versbose. Should this be an option at least? 
+
+TODO: Aggregation can be done by closing over rewrite functions, but it might be nice to have a more friendly version of that. Perhaps everything should be an aggregation, and provide a default for replacement.
+
+TODO: maybe provide several flavors of transformers?
+
+TODO: Instaparse allows users to remove parts of the AST with `<>` annotation. This might be useful?
+
+
+### Conveniences
 
 Define a function:
 
@@ -84,6 +114,41 @@ Define a function:
 ;; TBD
 (is/defn [props? not-props] ...)
 ```
+
+Generate values: TODO
+
+## Grammar
+
+Grammars are data.
+A grammar consists of name, rule pairs (similar to bindings).
+Rules may contain predicates and boolean logic.
+Predicates are identified by resolving the symbol.
+Names occurring in sequences treat `?`, `+`, and `*` suffixes as regex operands.
+Names that do not resolve are treated as bindings.
+
+In the example:
+
+```clojure
+'[hiccup (or tree literal)
+  tree [tag attrs? hiccup*]
+  literal (or nil? boolean? number? string?)
+  tag keyword?
+  attrs map?]
+```
+
+`attrs?` and `nil?` behave differently:
+
+* `nil?` is a predicate (resolves to the `nil?` function)
+* `attrs?` is the name for an optional value in a sequence
+* `hiccup*` will create a sequence of 0 or more matches
+
+## API
+
+`is/rewrite` is the main interface to parse and transform with.
+
+`is/parser` creates a parser only. Parsers return a hiccup style tree.
+
+`is/registry` builds the underlying libraries' construction.
 
 ## Rationale
 
@@ -202,17 +267,6 @@ attrs := map?
 child := string? | tree
 ```
 
-Can we have a similar syntax in Clojure?
-```clojure
-(def tree
-  (grammar.
-    tree [tag attrs? child*]
-    tag keyword?
-    attrs map?
-    child (or string? tree)))
-(is/defn dfs [tree] 
-  (prn tag))
-```
 
 ### Limitations
 
@@ -235,3 +289,11 @@ The rationale for sequence expressions is explained in
 
 The rationale for specifications is explained in
 [Spec rationale](https://clojure.org/about/spec) (Rich Hickey)
+
+Seqex parsing is explained in
+[Structure and Interpretation of Malli Regex Schemas](https://www.metosin.fi/blog/malli-regex-schemas/) (Jaakkola)
+
+Motivations for Malli are explained in
+[Malli: Inside Data-driven Schemas](https://www.youtube.com/watch?v=MR83MhWQ61E) (Reiman)
+
+Instaparse is explained in [Instaparse: What if context-free grammars were as easy to use as regular expressions?](https://www.youtube.com/watch?v=b2AUW6psVcE) (Engelberg)

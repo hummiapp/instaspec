@@ -44,6 +44,8 @@
                                      [:orn [x' r]]
                                      r)))
                                (rest x))))
+        ;; TODO: resolve is probably not quite right...
+        ;; really this is anything in the default registry (with the option to add stuff)
         (and (symbol? x) (resolve x)) x
         (symbol? x) [:ref (str x)]
         (regex? x) [:re x]
@@ -60,7 +62,16 @@
         schema [:schema {:registry (registry rules)} (str start)]]
     (ma/parser schema)))
 
-(defn match [p x expr]
-  {:pre []}
-  (let [m (p x)]
-    ))
+;; TODO: should provide a version that only resolves once, when the parser is made
+(defn rewrite [node]
+  (if (vector? node)
+    (let [[label value] node
+          transform (resolve (symbol (str label "$")))]
+      (if transform
+        (transform value)
+        value))
+    node))
+
+(defn rewriter [rules]
+  {:pre [(seq rules) (even? (count rules))]}
+  (comp rewrite (parser rules)))
