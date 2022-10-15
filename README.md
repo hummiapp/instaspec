@@ -81,11 +81,11 @@ You write functions named for the rules in your grammar,
 and they will be called in a trasformation traversal.
 
 ```clojure
-(defn tree$ [{:syms [tag attrs? element*]} rewrite]
+(defn tree$ [{:syms [tag attrs? element*]}]
   `[~(if (= :circle tag)
        :rect tag)
     ~@(if attrs? [attrs?] [])
-    ~@(map rewrite element*)])
+    ~@(map is/rewrite element*)])
 (is/rewrite (hiccup-parser svg-data))
 ;=>
 [:svg {:viewBox [0 0 10 10]}
