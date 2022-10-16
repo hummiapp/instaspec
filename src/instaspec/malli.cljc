@@ -5,9 +5,9 @@
   (and (symbol? x)
        (let [nm (name x)
              op (-> (last nm)
-                  {\? :?
-                   \* :*
-                   \+ :+})
+                    {\? :?
+                     \* :*
+                     \+ :+})
              nm (subs nm 0 (dec (count nm)))]
          (and op
               (> (count nm) 0)
@@ -19,7 +19,8 @@
   (and (list? x)
        (= 'or (first x))
        (into [:altn]
-             (map #([% [:schema (rule %)]])
+             (map (fn [y]
+                    [y [:schema (rule y)]])
                   (rest x)))))
 
 (defn regex? [x]
@@ -27,23 +28,46 @@
                 :cljs js/RegExp)
              x))
 
+(defn seqex [x]
+  (into [:catn]
+        (map #(or (seq-op %)
+                  (alt %)
+                  (and (symbol? %)
+                       [% [:schema (rule %)]])
+                  ;; TODO: gensym?
+                  ['_ (rule %)])
+             x)))
+
+(defn mapex [x]
+  ;; TODO: handle key names and map-of predicates
+  'map?)
+
+(defn setex [x]
+  (if (seq x)
+    '[:set-of (if (next x)
+                (into [:and] x)
+                x)]
+    'set?))
+
+;; should this include more stuff?
+(def ops '#{or and})
+
+(defn oprule [k more]
+  (into [k]
+        (map (fn [y]
+               (let [r (rule y)]
+                 (if (or (not= k :or) (symbol? r))
+                   [:orn [y r]]
+                   r)))
+             more)))
+
 (defn rule [x]
-  (cond (vector? x) (into [:catn]
-                          (map #(or (seq-op %)
-                                    (alt %)
-                                    (and (symbol? %)
-                                         [% [:schema (rule %)]])
-                                    ;; TODO: gensym?
-                                    ['_ (rule %)])
-                               x))
-        (list? x) (let [k (keyword (first x))]
-                    (into [k]
-                          (map (fn [x']
-                                 (let [r (rule x')]
-                                   (if (and (= k :or) (not (symbol? r)))
-                                     [:orn [x' r]]
-                                     r)))
-                               (rest x))))
+  (cond (list? x) (or (some-> (first x) (get ops) (keyword)
+                              (oprule (rest x)))
+                      (seqex x))
+        (vector? x) [:and 'vector? (seqex x)]
+        (map? x) (mapex x)
+        (set? x) (setex x)
         ;; TODO: resolve is probably not quite right...
         ;; really this is anything in the default registry (with the option to add stuff)
         (and (symbol? x) (resolve x)) x
