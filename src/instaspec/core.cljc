@@ -11,10 +11,10 @@
   '...
   )
 
-'{start (or literal tree)
-  tree [tag attrs? start*]
-  tag keyword?
-  attrs {}
+'{start   (or literal tree)
+  tree    [tag attrs? start*]
+  tag     keyword?
+  attrs   {}
   literal (or nil? boolean? number? string?)}
 
-;; TODO: remove by providing a nil trasform function?
+;; TODO: remove by providing a nil transform function?
