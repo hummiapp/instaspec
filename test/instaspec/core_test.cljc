@@ -1,16 +1,8 @@
 (ns instaspec.core-test
-  (:require
-    [clojure.pprint :as pprint]
-    [clojure.test :refer [deftest is testing use-fixtures]]
-    [instaspec.core :as is]
-    [instaspec.malli :as ism]))
+  (:require [clojure.test :refer [deftest is testing use-fixtures]]
+            [instaspec.test.helper :as h]))
 
-(use-fixtures :each
-  (fn [test]
-    (let [n (atom 0)]
-      (with-redefs [gensym (fn [prefix]
-                             (symbol (str prefix (swap! n inc))))]
-        (test)))))
+(use-fixtures :each h/monotone)
 
 (def defn-args-simple
   '[foo "documentation"
@@ -24,40 +16,28 @@
     (+ x y)])
 
 (def defn-args-multiarity
-  '[my-fn ([x y] (+ x y)) ([x y z] (+ x y z))])
-
-(defn report [label x]
-  (println)
-  (println "*** " label " ***")
-  (pprint/pprint x))
-
-(defmacro is-parsed [grammar data expected]
-  `(let [s# (ism/schema ~grammar)
-         _# (report "Schema" s#)
-         p# (ism/parser ~grammar)
-         r# (p# ~data)]
-     (report "Result" r#)
-     (is (= ~expected r#))))
+  '[my-fn
+    ([x y] (+ x y))
+    ([x y z] (+ x y z))])
 
 (def defn-single-grammar
   '{defn [name doc-string? attr-map? [params*] prepost-map? body]})
 
 (deftest defn-single-test
-  (is-parsed defn-single-grammar defn-args-simple
-             '{name        foo,
-               doc-string  "documentation",
-               attr-map    nil,
-               ;; TODO: notice that params are inaccessibly hidden under _
-               _is2        {params [x y]},
-               prepost-map nil,
-               body        (+ x y)})
-  (is-parsed defn-single-grammar defn-args-complete
-             '{name        my-fn
-               doc-string  "the best fn"
-               attr-map    {:best true}
-               _is4        {params [x y]}
-               prepost-map {:pre [(and x y)]}
-               body        (+ x y)}))
+  (h/is-parsed defn-single-grammar defn-args-simple
+               '{name        foo,
+                 doc-string  "documentation",
+                 attr-map    nil,
+                 params      [x y],
+                 prepost-map nil,
+                 body        (+ x y)})
+  (h/is-parsed defn-single-grammar defn-args-complete
+               '{name        my-fn
+                 doc-string  "the best fn"
+                 attr-map    {:best true}
+                 params      [x y]
+                 prepost-map {:pre [(and x y)]}
+                 body        (+ x y)}))
 
 (def defn-single-and-multi-grammar
   '{defn (or [name doc-string? attr-map? [params*] prepost-map? body]
@@ -65,12 +45,22 @@
 
 (deftest defn-single-and-multi-test
   ;; TODO: handle separate +
-  (is-parsed defn-single-and-multi-grammar defn-args-simple
-             {})
-  (is-parsed defn-single-and-multi-grammar defn-args-complete
-             {})
-  (is-parsed defn-single-and-multi-grammar defn-args-multiarity
-             {}))
+  (h/is-parsed defn-single-and-multi-grammar defn-args-simple
+               '{attr-map    nil
+                 body        (+ x y)
+                 doc-string  "documentation"
+                 name        foo
+                 params      [x y]
+                 prepost-map nil})
+  (h/is-parsed defn-single-and-multi-grammar defn-args-complete
+               '{attr-map    {:best true}
+                 body        (+ x y)
+                 doc-string  "the best fn"
+                 name        my-fn
+                 params      [x y]
+                 prepost-map {:pre [(and x y)]}})
+  (h/is-parsed defn-single-and-multi-grammar defn-args-multiarity
+               {}))
 
 (def unconnected-grammar
   '{S [a b c]
@@ -83,12 +73,12 @@
     arities    (arity-list+ post-attr-map?)})
 
 (deftest defn-shared-structure-test
-  (is-parsed defn-shared-structure-grammar defn-args-simple
-             {})
-  (is-parsed defn-single-and-multi-grammar defn-args-complete
-             {})
-  (is-parsed defn-single-and-multi-grammar defn-args-multiarity
-             {}))
+  (h/is-parsed defn-shared-structure-grammar defn-args-simple
+               {})
+  #_(h/is-parsed defn-single-and-multi-grammar defn-args-complete
+               {})
+  #_(h/is-parsed defn-single-and-multi-grammar defn-args-multiarity
+               {}))
 
 (def ^{:doc "Not supported (yet)"}
   defn-is4

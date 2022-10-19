@@ -1,46 +1,50 @@
 (ns instaspec.malli
   (:require
+    [clojure.pprint :as pprint]
     [clojure.string :as str]
     [malli.core :as ma]
     [malli.error :as merror]))
 
 (declare rule)
 
+(def nesting-prefix "<<-")
+
+(def seq-ops
+  {\? :?
+   \* :*
+   \+ :+})
+
 (defn seq-op [rules x]
   (and (symbol? x)
        (let [nm (name x)
-             op (-> (last nm)
-                  {\? :?
-                   \* :*
-                   \+ :+})
+             op (-> (last nm) (seq-ops))
              nm (subs nm 0 (dec (count nm)))]
          (and op
-              (> (count nm) 0)
-              [(symbol nm) [op (rule rules (symbol nm))]]))))
+              (seq nm)
+              [(symbol nm) [op [:schema (rule rules (symbol nm))]]]))))
 
-;; TODO: what is the difference between altn and orn?
+;; QUESTION: What is the difference between altn and orn? There doesn't seem to be any
 (defn alt [rules x]
   (and (sequential? x)
        (= 'or (first x))
-       (into [:altn]
-             (map (fn [y]
-                    [y (rule rules y)])
-                  (rest x)))))
+       [(gensym nesting-prefix) (into [:altn]
+                                      (map (fn [y]
+                                             [y [:schema (rule rules y)]])
+                                           (rest x)))]))
 
 (defn regex? [x]
   (instance? #?(:clj java.util.regex.Pattern
                 :cljs js/RegExp)
              x))
 
-(defn seqex [rules x]
+(defn seqex [rules xs]
   (into [:catn]
-        (map #(or (seq-op rules %)
-                  (alt rules %)
-                  (and (symbol? %)
-                       [% (rule rules %)])
-                  ;; TODO: gensym?
-                  [(gensym "_is") (rule rules %)])
-             x)))
+        (map (fn [x]
+               (or (seq-op rules x)
+                   (alt rules x)
+                   (and (symbol? x) [x [:schema (rule rules x)]])
+                   [(gensym nesting-prefix) (rule rules x)]))
+             xs)))
 
 (defn mapex [x]
   ;; TODO: handle key names and map-of predicates
@@ -84,7 +88,7 @@
         (set? x) (setex x)
         (vector? x) [:and 'vector? (seqex rules x)]
         (sequential? x) (or (some->> (first x) (get ops) (keyword)
-                              (oprule rules (rest x)))
+                                     (oprule rules (rest x)))
                             (seqex rules x))
         (symbol? x) (if (get rules x)
                       [:ref (str x)]
@@ -103,14 +107,33 @@
     [:schema {:registry (registry rules)}
      (str start)]))
 
+(defn lift-nested-names
+  "Malli doesn't always put the names where we want them...
+  Find cases of altn and nested sequences that need to be raised up a level."
+  [x]
+  (cond
+    (vector? x) (update x 1 lift-nested-names)
+    (map? x) (persistent!
+               (reduce
+                 (fn [acc [k v]]
+                   (if (str/starts-with? (str k) nesting-prefix)
+                     (-> acc (conj! (lift-nested-names v)) (dissoc! k))
+                     (assoc! acc k (lift-nested-names v))))
+                 (transient {})
+                 x))
+    :else x))
+
 (defn parser [rules]
   (let [s (schema rules)
         p (ma/parser s)]
     (fn parse [data]
       (let [result (p data)]
         (if (= result ::ma/invalid)
-          (println "ERROR:" (-> (ma/explain s data) (merror/humanize)))
-          result)))))
+          (do
+            (println "ERROR:" (-> (ma/explain s data) (merror/humanize)))
+            (pprint/pprint (ma/explain s data))
+            (pprint/pprint s))
+          (lift-nested-names result))))))
 
 ;; TODO: should provide a version that only resolves once, when the parser is made
 (defn rewrite [node]
