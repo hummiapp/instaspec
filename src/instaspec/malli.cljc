@@ -1,26 +1,30 @@
 (ns instaspec.malli
-  (:require [malli.core :as ma]))
-
-(defn seq-op [x]
-  (and (symbol? x)
-       (let [nm (name x)
-             op (-> (last nm)
-                    {\? :?
-                     \* :*
-                     \+ :+})
-             nm (subs nm 0 (dec (count nm)))]
-         (and op
-              (> (count nm) 0)
-              [x [op [:schema [:ref nm]]]]))))
+  (:require
+    [clojure.string :as str]
+    [malli.core :as ma]
+    [malli.error :as merror]))
 
 (declare rule)
 
-(defn alt [x]
-  (and (list? x)
+(defn seq-op [rules x]
+  (and (symbol? x)
+       (let [nm (name x)
+             op (-> (last nm)
+                  {\? :?
+                   \* :*
+                   \+ :+})
+             nm (subs nm 0 (dec (count nm)))]
+         (and op
+              (> (count nm) 0)
+              [(symbol nm) [op (rule rules (symbol nm))]]))))
+
+;; TODO: what is the difference between altn and orn?
+(defn alt [rules x]
+  (and (sequential? x)
        (= 'or (first x))
        (into [:altn]
              (map (fn [y]
-                    [y [:schema (rule y)]])
+                    [y (rule rules y)])
                   (rest x)))))
 
 (defn regex? [x]
@@ -28,14 +32,14 @@
                 :cljs js/RegExp)
              x))
 
-(defn seqex [x]
+(defn seqex [rules x]
   (into [:catn]
-        (map #(or (seq-op %)
-                  (alt %)
+        (map #(or (seq-op rules %)
+                  (alt rules %)
                   (and (symbol? %)
-                       [% [:schema (rule %)]])
+                       [% (rule rules %)])
                   ;; TODO: gensym?
-                  ['_ (rule %)])
+                  [(gensym "_is") (rule rules %)])
              x)))
 
 (defn mapex [x]
@@ -49,42 +53,64 @@
                 x)]
     'set?))
 
-;; should this include more stuff?
+;; should this include more stuff? (or less... maybe we don't need and)
 (def ops '#{or and})
 
-(defn oprule [k more]
+(defn oprule [rules more k]
   (into [k]
         (map (fn [y]
-               (let [r (rule y)]
+               (let [r (rule rules y)]
                  (if (or (not= k :or) (symbol? r))
                    [:orn [y r]]
                    r)))
              more)))
 
-(defn rule [x]
-  (cond (list? x) (or (some-> (first x) (get ops) (keyword)
-                              (oprule (rest x)))
-                      (seqex x))
-        (vector? x) [:and 'vector? (seqex x)]
+(defn pred? [x]
+  (and (symbol? x)
+       (str/starts-with? (str x) "<")
+       (str/ends-with? (str x) ">")))
+
+;; TODO: should also check the default registry (with the option to add stuff)
+(defn predex [x]
+  (let [s (str x)]
+    (-> (subs (str x) 1 (dec (count s)))
+      (str "?")
+      (symbol))))
+
+(defn rule [rules x]
+  (cond (pred? x) (predex x)
+        (regex? x) [:re x]
         (map? x) (mapex x)
         (set? x) (setex x)
-        ;; TODO: resolve is probably not quite right...
-        ;; really this is anything in the default registry (with the option to add stuff)
-        (and (symbol? x) (resolve x)) x
-        (symbol? x) [:ref (str x)]
-        (regex? x) [:re x]
+        (vector? x) [:and 'vector? (seqex rules x)]
+        (sequential? x) (or (some->> (first x) (get ops) (keyword)
+                              (oprule rules (rest x)))
+                            (seqex rules x))
+        (symbol? x) (if (get rules x)
+                      [:ref (str x)]
+                      'any?)
         :else [:= x]))
 
 (defn registry [rules]
-  (-> (apply hash-map rules)
+  (-> rules
     (update-keys str)
-    (update-vals rule)))
+    (update-vals #(rule rules %))))
+
+(defn schema [rules]
+  {:pre [(< (count rules) 9)]}
+  ;; TODO: ffirst only works for maps of length < 9, beyond that start must be nominated
+  (let [start (ffirst rules)]
+    [:schema {:registry (registry rules)}
+     (str start)]))
 
 (defn parser [rules]
-  {:pre [(seq rules) (even? (count rules))]}
-  (let [[start] rules
-        schema [:schema {:registry (registry rules)} (str start)]]
-    (ma/parser schema)))
+  (let [s (schema rules)
+        p (ma/parser s)]
+    (fn parse [data]
+      (let [result (p data)]
+        (if (= result ::ma/invalid)
+          (println "ERROR:" (-> (ma/explain s data) (merror/humanize)))
+          result)))))
 
 ;; TODO: should provide a version that only resolves once, when the parser is made
 (defn rewrite [node]
