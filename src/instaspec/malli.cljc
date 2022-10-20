@@ -3,7 +3,8 @@
     [clojure.pprint :as pprint]
     [clojure.string :as str]
     [malli.core :as ma]
-    [malli.error :as merror]))
+    [malli.error :as me]
+    [malli.generator :as mg]))
 
 (declare rule)
 
@@ -21,7 +22,7 @@
              nm (subs nm 0 (dec (count nm)))]
          (and op
               (seq nm)
-              [(symbol nm) [op [:schema (rule rules (symbol nm))]]]))))
+              [(symbol nm) [op (rule rules (symbol nm))]]))))
 
 ;; QUESTION: What is the difference between altn and orn? There doesn't seem to be any
 (defn alt [rules x]
@@ -29,7 +30,7 @@
        (= 'or (first x))
        [(gensym nesting-prefix) (into [:altn]
                                       (map (fn [y]
-                                             [y [:schema (rule rules y)]])
+                                             [y (rule rules y)])
                                            (rest x)))]))
 
 (defn regex? [x]
@@ -42,7 +43,7 @@
         (map (fn [x]
                (or (seq-op rules x)
                    (alt rules x)
-                   (and (symbol? x) [x [:schema (rule rules x)]])
+                   (and (symbol? x) [x (rule rules x)])
                    [(gensym nesting-prefix) (rule rules x)]))
              xs)))
 
@@ -58,21 +59,23 @@
     'set?))
 
 ;; should this include more stuff? (or less... maybe we don't need and)
-(def ops '#{or and})
-
-(defn oprule [rules more k]
-  (into [k]
-        (map (fn [y]
-               (let [r (rule rules y)]
-                 (if (or (not= k :or) (symbol? r))
-                   [:orn [y r]]
-                   r)))
-             more)))
+(def ops
+  '{or  :or
+    and :and})
 
 (defn pred? [x]
   (and (symbol? x)
        (str/starts-with? (str x) "<")
        (str/ends-with? (str x) ">")))
+
+(defn oprule [rules more op]
+  (into [op]
+        (map (fn [arg]
+               (let [r (rule rules arg)]
+                 (if (and (symbol? arg) (not (pred? arg)))
+                   [:orn [arg r]]
+                   r)))
+             more)))
 
 ;; TODO: should also check the default registry (with the option to add stuff)
 (defn predex [x]
@@ -81,17 +84,24 @@
       (str "?")
       (symbol))))
 
+(defn recursive? [rules x]
+  ;; TODO: how to detect recursive rules?
+  (= 'node x)
+  #_(-> (get rules x)))
+
 (defn rule [rules x]
   (cond (pred? x) (predex x)
         (regex? x) [:re x]
         (map? x) (mapex x)
         (set? x) (setex x)
         (vector? x) [:and 'vector? (seqex rules x)]
-        (sequential? x) (or (some->> (first x) (get ops) (keyword)
+        (sequential? x) (or (some->> (first x) (get ops)
                                      (oprule rules (rest x)))
                             (seqex rules x))
-        (symbol? x) (if (get rules x)
-                      [:ref (str x)]
+        (symbol? x) (if-let [r (get rules x)]
+                      (if (recursive? rules x)
+                        [:schema [:ref (str x)]]
+                        (str x))
                       'any?)
         :else [:= x]))
 
@@ -112,7 +122,12 @@
   Find cases of altn and nested sequences that need to be raised up a level."
   [x]
   (cond
-    (vector? x) (update x 1 lift-nested-names)
+    ;; TODO: this is a dodgy way to distinguish between true vectors and tagged pairs
+    ;; find a better way to know the difference
+    (and (vector? x)
+         (symbol? (first x))) (let [[k v] x]
+                                {k (lift-nested-names v)})
+    (vector? x) (mapv lift-nested-names x)
     (map? x) (persistent!
                (reduce
                  (fn [acc [k v]]
@@ -130,10 +145,13 @@
       (let [result (p data)]
         (if (= result ::ma/invalid)
           (do
-            (println "ERROR:" (-> (ma/explain s data) (merror/humanize)))
-            (pprint/pprint (ma/explain s data))
-            (pprint/pprint s))
+            (println "ERROR:" (-> (ma/explain s data) (me/humanize)))
+            (pprint/pprint (ma/explain s data)))
           (lift-nested-names result))))))
+
+(defn generate [rules]
+  (let [s (schema rules)]
+    (mg/generate s)))
 
 ;; TODO: should provide a version that only resolves once, when the parser is made
 (defn rewrite [node]

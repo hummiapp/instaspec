@@ -74,11 +74,21 @@
 
 (deftest defn-shared-structure-test
   (h/is-parsed defn-shared-structure-grammar defn-args-simple
-               {})
-  #_(h/is-parsed defn-single-and-multi-grammar defn-args-complete
-               {})
-  #_(h/is-parsed defn-single-and-multi-grammar defn-args-multiarity
-               {}))
+               '{arity      {body        (+ x y)
+                             params      {x y}
+                             prepost-map nil}
+                 attr-map   nil
+                 doc-string "documentation"
+                 name       foo})
+  (h/is-parsed defn-single-and-multi-grammar defn-args-complete
+                 '{attr-map    {:best true}
+                   body        (+ x y)
+                   doc-string  "the best fn"
+                   name        my-fn
+                   params      {x y}
+                   prepost-map {:pre [(and x y)]}})
+  (h/is-parsed defn-single-and-multi-grammar defn-args-multiarity
+                 {}))
 
 (def ^{:doc "Not supported (yet)"}
   defn-is4

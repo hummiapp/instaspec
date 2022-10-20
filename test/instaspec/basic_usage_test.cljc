@@ -1,6 +1,8 @@
 (ns instaspec.basic-usage-test
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
-            [instaspec.test.helper :as h]))
+            [instaspec.malli :as ism]
+            [instaspec.test.helper :as h]
+            [malli.core :as ma]))
 
 (use-fixtures :each h/monotone)
 
@@ -41,7 +43,7 @@
                  v     [a b c]
                  k     <keyword>}
                ':k
-               ':k))
+               '{k :k}))
 
 (deftest sub-or-rules-test
   (h/is-parsed '{start [m s (or v k)]
@@ -59,4 +61,49 @@
                '[1 [2 3 [4]]]
                '{a 1, b 2, c 3, d 4}))
 
-;; orn it up?
+(deftest subvector-rule-test
+  (h/is-parsed '{start [a [b c vv]]
+                 vv    [d]}
+               '[1 [2 3 [4]]]
+               '{a 1, b 2, c 3, vv {d 4}}))
+
+(deftest subgroup-rule-test
+  (h/is-parsed '{start [a b]
+                 b     (c d)}
+               '[1 2 3]
+               '{a 1, b {c 2, d 3}}))
+
+(ism/schema
+  '{node    (or literal tree)
+    tree    [tag node*]
+    literal (or <int> <string>)})
+
+(deftest recursive-rule-test
+  (h/is-parsed '{node    (or literal tree)
+                 tree    [tag node*]
+                 literal (or <int> <string>)}
+               '[:tag 2 3 [:subtag 4]]
+               '{tree {tag  :tag
+                       node [{literal 2}
+                             {literal 3}
+                             {tree {tag  :subtag
+                                    node [{literal 4}]}}]}}))
+
+#_(ma/parse
+    '[:schema {:registry {"start" [:and vector? [:catn
+                                                 [a [:schema any?]]
+                                                 [b [:schema [:ref "b"]]]]],
+                          "b"     [:catn [c [:schema any?]] [d [:schema any?]]]}}
+      "start"],
+    '[1 (2 3)])
+
+#_(ma/parse
+    '[:schema {:registry {"start" [:and vector? [:catn
+                                                 [a [:schema any?]]
+                                                 [b [:catn [c [:schema any?]] [d [:schema any?]]]]]]}}
+      "start"],
+    '[1 2 3])
+
+(deftest generate-test
+  (ism/generate '{start [a b]
+                  b     (c d)}))
