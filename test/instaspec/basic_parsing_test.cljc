@@ -1,4 +1,4 @@
-(ns instaspec.basic-usage-test
+(ns instaspec.basic-parsing-test
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [instaspec.malli :as ism]
             [instaspec.test.helper :as h]
@@ -10,6 +10,7 @@
   (h/is-parsed '{start <string>}
                "this is a string"
                "this is a string")
+  ;; TODO: should get an excuse
   (h/is-parsed '{start <string>}
                1
                nil))
@@ -43,7 +44,7 @@
                  v     [a b c]
                  k     <keyword>}
                ':k
-               '{k :k}))
+               '[k :k]))
 
 (deftest sub-or-rules-test
   (h/is-parsed '{start [m s (or v k)]
@@ -78,16 +79,33 @@
     tree    [tag node*]
     literal (or <int> <string>)})
 
+(ism/schema
+  '{node     (or literal tree)
+    tree     [tag children]
+    children node*
+    literal  (or <int> <string>)})
+
+(ism/schema
+  '{node     (or literal tree)
+    tree     [tag children*]
+    children node
+    literal  (or <int> <string>)})
+
+(ism/schema
+  '{node    literal|tree
+    tree    [tag children<node>*]
+    literal <int>|<string>})
+
 (deftest recursive-rule-test
   (h/is-parsed '{node    (or literal tree)
                  tree    [tag node*]
                  literal (or <int> <string>)}
-               '[:tag 2 3 [:subtag 4]]
-               '{tree {tag  :tag
-                       node [{literal 2}
-                             {literal 3}
-                             {tree {tag  :subtag
-                                    node [{literal 4}]}}]}}))
+               '[:t 2 3 [:st 4]]
+               '[tree {tag  :t
+                       node [[literal 2]
+                             [literal 3]
+                             [tree {tag  :st
+                                    node [[literal 4]]}]]}]))
 
 #_(ma/parse
     '[:schema {:registry {"start" [:and vector? [:catn
@@ -105,5 +123,5 @@
     '[1 2 3])
 
 (deftest generate-test
-  (ism/generate '{start [a b]
+  #_(ism/generate '{start [a b]
                   b     (c d)}))

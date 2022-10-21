@@ -4,11 +4,11 @@
     [instaspec.malli :as is]))
 
 (def hiccup-is
-  '[element (or literal tree)
-    tree (and vector? [tag attrs? element*])
+  '{element (or literal tree)
+    tree    (and vector? [tag attrs? element*])
     literal (or nil? boolean? number? string?)
-    tag keyword?
-    attrs (map-of keyword? any?)])
+    tag     keyword?
+    attrs   (map-of keyword? any?)})
 
 (println "** HICCUP Registry **")
 (pprint/pprint

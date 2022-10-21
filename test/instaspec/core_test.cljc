@@ -1,6 +1,9 @@
 (ns instaspec.core-test
-  (:require [clojure.test :refer [deftest is testing use-fixtures]]
-            [instaspec.test.helper :as h]))
+  (:require
+    [clojure.pprint :as pprint]
+    [clojure.test :refer [deftest is testing use-fixtures]]
+    [instaspec.malli :as ism]
+    [instaspec.test.helper :as h]))
 
 (use-fixtures :each h/monotone)
 
@@ -16,6 +19,12 @@
     (+ x y)])
 
 (def defn-args-multiarity
+  '[my-fn "multiarity"
+    {:better true}
+    ([x y] (+ x y))
+    ([x y z] (+ x y z))])
+
+(def defn-args-multiarity-needs-types
   '[my-fn
     ([x y] (+ x y))
     ([x y z] (+ x y z))])
@@ -41,7 +50,8 @@
 
 (def defn-single-and-multi-grammar
   '{defn (or [name doc-string? attr-map? [params*] prepost-map? body]
-             [name doc-string? attr-map? ([params*] prepost-map? body) + post-attr-map?])})
+             ;; How do you ask for a sequence vs a group??
+             [name doc-string? attr-map? (+ (([params*] prepost-map? body))) post-attr-map?])})
 
 (deftest defn-single-and-multi-test
   ;; TODO: handle separate +
@@ -59,8 +69,13 @@
                  name        my-fn
                  params      [x y]
                  prepost-map {:pre [(and x y)]}})
+  ;; params are missing in multi-arity because the subsequence is anonymous
+  ;; TODO: should this be an error? warning? or get a useful name?
   (h/is-parsed defn-single-and-multi-grammar defn-args-multiarity
-               {}))
+               '{attr-map      {:better true}
+                 doc-string    "multiarity"
+                 name          my-fn
+                 post-attr-map nil}))
 
 (def unconnected-grammar
   '{S [a b c]
@@ -75,20 +90,29 @@
 (deftest defn-shared-structure-test
   (h/is-parsed defn-shared-structure-grammar defn-args-simple
                '{arity      {body        (+ x y)
-                             params      {x y}
+                             params      [x y]
                              prepost-map nil}
                  attr-map   nil
                  doc-string "documentation"
                  name       foo})
-  (h/is-parsed defn-single-and-multi-grammar defn-args-complete
-                 '{attr-map    {:best true}
-                   body        (+ x y)
-                   doc-string  "the best fn"
-                   name        my-fn
-                   params      {x y}
-                   prepost-map {:pre [(and x y)]}})
-  (h/is-parsed defn-single-and-multi-grammar defn-args-multiarity
-                 {}))
+  (h/is-parsed defn-shared-structure-grammar defn-args-complete
+               '{arity      {body        (+ x y)
+                             params      [x y]
+                             prepost-map {:pre [(and x y)]}}
+                 attr-map   {:best true}
+                 doc-string "the best fn"
+                 name       my-fn})
+  (h/is-parsed defn-shared-structure-grammar defn-args-multiarity
+               '{arities    {arity-list    [{arity {body        (+ x y)
+                                                    params      [x y]
+                                                    prepost-map nil}}
+                                            {arity {body        (+ x y z)
+                                                    params      [x y z]
+                                                    prepost-map nil}}]
+                             post-attr-map nil}
+                 attr-map   {:better true}
+                 doc-string "multiarity"
+                 name       my-fn}))
 
 (def ^{:doc "Not supported (yet)"}
   defn-is4
