@@ -34,19 +34,19 @@
 
 (deftest defn-single-test
   (h/is-parsed defn-single-grammar defn-args-simple
-               '{name        foo,
-                 doc-string  "documentation",
-                 attr-map    nil,
-                 params      [x y],
-                 prepost-map nil,
-                 body        (+ x y)})
+               '{name         foo,
+                 doc-string?  "documentation",
+                 attr-map?    nil,
+                 params*      [x y],
+                 prepost-map? nil,
+                 body         (+ x y)})
   (h/is-parsed defn-single-grammar defn-args-complete
-               '{name        my-fn
-                 doc-string  "the best fn"
-                 attr-map    {:best true}
-                 params      [x y]
-                 prepost-map {:pre [(and x y)]}
-                 body        (+ x y)}))
+               '{name         my-fn
+                 doc-string?  "the best fn"
+                 attr-map?    {:best true}
+                 params*      [x y]
+                 prepost-map? {:pre [(and x y)]}
+                 body         (+ x y)}))
 
 (def defn-single-and-multi-grammar
   '{defn (or [name doc-string? attr-map? [params*] prepost-map? body]
@@ -56,26 +56,26 @@
 (deftest defn-single-and-multi-test
   ;; TODO: handle separate +
   (h/is-parsed defn-single-and-multi-grammar defn-args-simple
-               '{attr-map    nil
-                 body        (+ x y)
-                 doc-string  "documentation"
-                 name        foo
-                 params      [x y]
-                 prepost-map nil})
+               '{name         foo
+                 doc-string?  "documentation"
+                 attr-map?    nil
+                 params*      [x y]
+                 prepost-map? nil
+                 body         (+ x y)})
   (h/is-parsed defn-single-and-multi-grammar defn-args-complete
-               '{attr-map    {:best true}
-                 body        (+ x y)
-                 doc-string  "the best fn"
-                 name        my-fn
-                 params      [x y]
-                 prepost-map {:pre [(and x y)]}})
+               '{name         my-fn
+                 doc-string?  "the best fn"
+                 attr-map?    {:best true}
+                 params*      [x y]
+                 prepost-map? {:pre [(and x y)]}
+                 body         (+ x y)})
   ;; params are missing in multi-arity because the subsequence is anonymous
   ;; TODO: should this be an error? warning? or get a useful name?
   (h/is-parsed defn-single-and-multi-grammar defn-args-multiarity
-               '{attr-map      {:better true}
-                 doc-string    "multiarity"
-                 name          my-fn
-                 post-attr-map nil}))
+               '{name           my-fn
+                 doc-string?    "multiarity"
+                 attr-map?      {:better true}
+                 post-attr-map? nil}))
 
 (def unconnected-grammar
   '{S [a b c]
@@ -89,30 +89,30 @@
 
 (deftest defn-shared-structure-test
   (h/is-parsed defn-shared-structure-grammar defn-args-simple
-               '{arity      {body        (+ x y)
-                             params      [x y]
-                             prepost-map nil}
-                 attr-map   nil
-                 doc-string "documentation"
-                 name       foo})
+               '{name        foo
+                 doc-string? "documentation"
+                 attr-map?   nil
+                 arity       {params*      [x y]
+                              body         (+ x y)
+                              prepost-map? nil}})
   (h/is-parsed defn-shared-structure-grammar defn-args-complete
-               '{arity      {body        (+ x y)
-                             params      [x y]
-                             prepost-map {:pre [(and x y)]}}
-                 attr-map   {:best true}
-                 doc-string "the best fn"
-                 name       my-fn})
+               '{name        my-fn
+                 doc-string? "the best fn"
+                 attr-map?   {:best true}
+                 arity       {body         (+ x y)
+                              params*      [x y]
+                              prepost-map? {:pre [(and x y)]}}})
   (h/is-parsed defn-shared-structure-grammar defn-args-multiarity
-               '{arities    {arity-list    [{arity {body        (+ x y)
-                                                    params      [x y]
-                                                    prepost-map nil}}
-                                            {arity {body        (+ x y z)
-                                                    params      [x y z]
-                                                    prepost-map nil}}]
-                             post-attr-map nil}
-                 attr-map   {:better true}
-                 doc-string "multiarity"
-                 name       my-fn}))
+               '{name        my-fn
+                 doc-string? "multiarity"
+                 attr-map?   {:better true}
+                 arities     {arity-list+    [{arity {params*      [x y]
+                                                      prepost-map? nil
+                                                      body         (+ x y)}}
+                                              {arity {params*      [x y z]
+                                                      prepost-map? nil
+                                                      body         (+ x y z)}}]
+                              post-attr-map? nil}}))
 
 (def ^{:doc "Not supported (yet)"}
   defn-is4

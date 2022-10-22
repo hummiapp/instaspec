@@ -101,11 +101,11 @@
                  tree    [tag node*]
                  literal (or <int> <string>)}
                '[:t 2 3 [:st 4]]
-               '[tree {tag  :t
-                       node [[literal 2]
-                             [literal 3]
-                             [tree {tag  :st
-                                    node [[literal 4]]}]]}]))
+               '[tree {tag   :t
+                       node* [[literal 2]
+                              [literal 3]
+                              [tree {tag   :st
+                                     node* [[literal 4]]}]]}]))
 
 #_(ma/parse
     '[:schema {:registry {"start" [:and vector? [:catn
@@ -124,4 +124,4 @@
 
 (deftest generate-test
   #_(ism/generate '{start [a b]
-                  b     (c d)}))
+                    b     (c d)}))

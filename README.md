@@ -1,6 +1,12 @@
 # Instaspec
 
-Specify and parse data in easy-mode.
+Specify, parse, and transform data in easy-mode.
+
+Instaspec is a concise and easy rule syntax for parsing and transforming data that separates the shape of data from predicates.
+
+Instaspec syntax imitates the comfortable interface of EBNF (ala Instaparse) to describe data.
+Grammars are translated to Specs.
+Transformations are facilitated with a construction helper with the same syntax.
 
 ![Hummingbird](https://hummi.app/img/hummi.svg)
 
@@ -31,11 +37,11 @@ Define a grammar:
 
 ```clojure
 (def hiccup-grammar
-  '[element (or literal tree)
-    tree (and vector? [tag attrs? element*])
-    literal (or nil? boolean? number? string?)
-    tag keyword?
-    attrs (map-of keyword? any?)])
+  '{element (or literal tree)
+    tree [tag attrs? element*]
+    literal (or <nil> <boolean> <number> <string>)
+    tag <keyword>
+    attrs <map>})
 ```
 
 Create a parser from the grammar:
@@ -56,25 +62,7 @@ Given some data to parse:
     [:rect {:width 2, :height 3}]]])
 ```
 
-Parse the data:
-
-```clojure
-(hiccup-parser svg-data)
-;=>
-[tree {tag :svg,
-       attrs? {:viewBox [0 0 10 10]},
-       element* [[literal "hello world!"]
-                 [tree {tag :g,
-                        attrs? nil,
-                        element* [[tree {tag :circle,
-                                         attrs? {:cx 1, :cy 2},
-                                         element* []}]
-      [tree {tag :rect,
-             attrs? {:width 2, :height 3},
-             element* []}]]}]]}]
-```
-
-### Transforming
+TODO: improved syntax support coming soon...
 
 `rewrite` is a tiny scaffold for transforming the parse results into the desired output.
 You write functions named for the rules in your grammar,
@@ -111,6 +99,27 @@ TODO: maybe provide several flavors of transformers?
 
 TODO: Instaparse allows users to remove parts of the AST with `<>` annotation. This might be useful?
 
+Parsing the data binds names from your grammar:
+
+```clojure
+(hiccup-parser svg-data)
+;=>
+[tree {tag :svg,
+       attrs? {:viewBox [0 0 10 10]},
+       element* [[literal "hello world!"]
+                 [tree {tag :g,
+                        attrs? nil,
+                        element* [[tree {tag :circle,
+                                         attrs? {:cx 1, :cy 2},
+                                         element* []}]
+      [tree {tag :rect,
+             attrs? {:width 2, :height 3},
+             element* []}]]}]]}]
+```
+
+TODO: Validating
+
+TODO: Generating
 
 ### Conveniences
 
@@ -135,22 +144,21 @@ Names that do not resolve are treated as bindings.
 In the example:
 
 ```clojure
-'[hiccup (or tree literal)
+'{hiccup (or tree literal)
   tree [tag attrs? hiccup*]
-  literal (or nil? boolean? number? string?)
-  tag keyword?
-  attrs map?]
+  literal (or <nil> <boolean> <number> <string>)
+  tag <keyword>
+  attrs <map>}
 ```
 
-`attrs?` and `nil?` behave differently:
-
-* `nil?` is a predicate (resolves to the `nil?` function)
+* `<nil>` is a predicate (resolves to the `nil?` function)
 * `attrs?` is the name for an optional value in a sequence
 * `hiccup*` will create a sequence of 0 or more matches
+* `or` is a special operator
 
 ## API
 
-`is/rewrite` is the main interface to parse and transform with.
+`is/rewrite` is the primary interface to parse and transform with.
 
 `is/parser` creates a parser only. Parsers return a hiccup style tree.
 
@@ -159,8 +167,8 @@ In the example:
 ## Rationale
 
 Sequence specifications are clearest when kept separate from predicates.
-EBNF provides clearer sequence expressions than RegEx.
-EBNF names important parts of the grammar, which is useful for both parsing and processing.
+EBNF provides clearer sequence expressions than s-expression RegEx.
+EBNF decomposes grammar and names those decompositions, which is useful for both parsing and processing.
 
 [Spec](https://clojure.github.io/spec.alpha/) (Hickey)
 and similar libraries implement s-expression based RegEx interfaces to specify and parse data.
@@ -172,20 +180,20 @@ But it parses text, not data.
 Much of the convenience is due to a superior interface:
 users specify grammars in EBNF rather than s-expressions.
 
-**Instaspec** seeks to provide the convenience of Instaparse for data parsing by translating EBNF style grammar into popular data specification libraries.
+**Instaspec** provides the convenience of Instaparse for data parsing by translating EBNF style grammar into popular data specification libraries.
 
 [Meander](https://github.com/noprompt/meander) (Holdbrooks)
 shows that substitution expressions are an expressive way to construct outputs from parsed inputs.
 Other libraries tend to leave it up to the user to figure out ways to process what was parsed.
 
-**Instaspec** seeks to provide a convenient abstraction for traversing and processing an AST based upon the names used to construct the EBNF grammar.
+**Instaspec** provides a convenient abstraction for traversing and processing an AST based upon the names used to construct the EBNF grammar.
 
 ### Problem
 
-1. Existing data parsing libraries conflate sequence parsing with predicates and named value capture.
+1. The s-expression interface to existing data parsing libraries conflates sequence parsing with predicates and named value capture.
 Expressions are deeply nested annotations that correctly define the objective, but are inscrutable.
 The user interface has been a barrier to adoption of these powerful libraries.
-2. Beyond specifying and parsing, the user still has the job of processing the data. Expressing this processing often leads to repetition as it requires a custom tree traversal implementation of the same structure already specified.
+2. Beyond specifying and parsing, the user still has the job of transforming the data. Expressing this processing often leads to repetition as it requires a custom tree traversal implementation of the same structure already specified.
 
 ### Solution
 
@@ -241,6 +249,7 @@ There are many data parsing libraries to choose from:
 | [cgrand/seqexp](https://github.com/cgrand/seqexp)               | cgrand         |
 | [jclaggett/seqex](https://github.com/jclaggett/seqex)           | jclaggett      |
 
+- These libraries are high quality and powerful
 - Malli and Schema implement data driven specs
 - Meander has substitution, which is helpful for output transformations
 - Consuming nested bindings can be a challenge in all libraries
@@ -280,10 +289,6 @@ The S-expression Regex interface was selected by library authors for good reason
 S-expressions allow libraries flexibility beyond what EBNF can express.
 Instaspec cannot expose the full range of capabilities that data parsing libraries have.
 Even so, the subset of capabilities that it does expose is substantial and useful.
-
-Instaspec addresses only matching and transformation.
-Generation of values can be achieved using the underlying libraries.
-It might be a good idea to add generation to the interface for convenience.
 
 ### References
 

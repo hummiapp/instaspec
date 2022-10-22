@@ -42,7 +42,7 @@
 (defn seq-op [rules x]
   (or (alt rules x)
       (when-let [[op sn] (seq-op? x)]
-        [sn [op (rule rules sn)]])))
+        [x [op (rule rules sn)]])))
 
 (defn regex? [x]
   (instance? #?(:clj java.util.regex.Pattern
@@ -189,8 +189,8 @@
     (mg/generate s)))
 
 ;; TODO: should provide a version that only resolves once, when the parser is made
-(defn rewrite [node]
-  (if (vector? node)
+(defn rewrite [rules node]
+  (if (named-pair? rules node)
     (let [[label value] node
           transform (resolve (symbol (str label "$")))]
       (if transform
@@ -201,3 +201,39 @@
 (defn rewriter [rules]
   {:pre [(seq rules) (even? (count rules))]}
   (comp rewrite (parser rules)))
+
+(defn *? [x]
+  (and (symbol? x)
+       (str/ends-with? (str x) "*")))
+
+(declare process-node)
+
+(defn apply-rule [grammar rule x]
+  (println "AR" rule x)
+  (cond (vector? rule) (vec (mapcat #(let [y (apply-rule grammar % x)]
+                                       (if (sequential? y)
+                                         y
+                                         [y]))
+                                    rule))
+        (seq-op? rule) (process-node grammar (get x rule))
+        (name? rule) (let [y (get x rule)
+                               r (get grammar rule)]
+                           (println "NAME" y r)
+                           (cond (*? r)
+                                 (vec
+                                   (mapcat #(let [z (process-node grammar %)]
+                                              (if (sequential? z)
+                                                z
+                                                [z]))
+                                           y))
+                                 (contains? grammar r)
+                                 (process-node grammar y)
+                                 :else y))
+        :else x))
+
+(defn process-node [grammar [tag x]]
+  (println "PN" tag x)
+  (let [rule (get grammar tag)]
+    (if (*? tag)
+      (map #(process-node grammar %) x)
+      (apply-rule grammar rule x))))
