@@ -1,8 +1,7 @@
 (ns instaspec.basic-restructuring-test
-  (:require
-    [clojure.string :as str]
-    [clojure.test :refer [deftest is testing]]
-    [instaspec.malli :as ism]))
+  (:require [clojure.string :as str]
+            [clojure.test :refer [deftest is testing]]
+            [instaspec.malli :as ism]))
 
 ;; {a 1, b 2, c 3} is a sequence
 ;; But, sequence might also just be a vector :(
@@ -19,7 +18,7 @@
   '{
     ;; not needed? (should be ignored if present)
     ;;node     (or literal tree)
-    tree [tag children]
+    tree     [tag children]
     ;; not needed? (should be ignored if present)
     children node*
     ;;literal  (or <int> <string>)
@@ -31,14 +30,20 @@
 (declare process-node)
 
 
-(deftest tt1
+;; TODO: nil removes, because we don't like trees? what is identity?
+(deftest flatten-test
   (is (= [:html 2 3 :body 4]
-         (ism/process-node identi labeled-result))))
+         (ism/process-node '{tree     [tag children]
+                             children node*
+                             literal  ()}
+                           labeled-result))))
 
-(def g
-  '{tree    (tag children*)
-    ;; remove me
-    literal ()})
+(deftest remove-literals-test
+  (is (= [:html :body]
+         (ism/process-node '{tree     [tag children]
+                             children node*
+                             literal  nil}
+                           labeled-result))))
 
 
 ;; TODO: use rewrite instead

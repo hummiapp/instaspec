@@ -62,36 +62,18 @@ Given some data to parse:
     [:rect {:width 2, :height 3}]]])
 ```
 
-TODO: improved syntax support coming soon...
-
-`rewrite` is a tiny scaffold for transforming the parse results into the desired output.
-You write functions named for the rules in your grammar,
-and they will be called in a trasformation traversal.
+Grammars are symmetrical, they can take an AST and transform it:
 
 ```clojure
-(defn tree$ [{:syms [tag attrs? element*]}]
-  `[~(if (= :circle tag)
-       :rect tag)
-    ~@(if attrs? [attrs?] [])
-    ~@(map is/rewrite element*)])
-(is/rewrite (hiccup-parser svg-data))
+(is/process-node '{tree     [tag children]
+                   children node*
+                   literal  nil}
+                 (hiccup-parser svg-data))
 ;=>
-[:svg {:viewBox [0 0 10 10]}
- "hello world!"
- [:g [:rect {:cx 1, :cy 2}] [:rect {:width 2, :height 3}]]]
+[:svg :g :rect :rect]
 ```
 
-Above we replaced the `:circle` with a `:rect`.
-The naming of `tree$` is a convention that `rewrite` uses to identify the transformation for `tree`.
-The trailing `$` indicates that the function is for transformation, not a predicate!
-
-The usage of `~@` is regular Clojure templating.
-
-Rewrite functions take as input a map of symbols from the grammar, and return a replacement.
-
-If no rewrite function is present for a name `identity` is used instead.
-
-TODO: would be more explicit to provide functions instead of resolving them, but would also be more versbose. Should this be an option at least? 
+In the above example we extract only tags, and remove literals.
 
 TODO: Aggregation can be done by closing over rewrite functions, but it might be nice to have a more friendly version of that. Perhaps everything should be an aggregation, and provide a default for replacement.
 

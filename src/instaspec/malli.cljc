@@ -218,7 +218,7 @@
         (seq-op? rule) (process-node grammar (get x rule))
         (name? rule) (let [y (get x rule)
                                r (get grammar rule)]
-                           (println "NAME" y r)
+                           (println "NAME" r y)
                            (cond (*? r)
                                  (vec
                                    (mapcat #(let [z (process-node grammar %)]
@@ -229,6 +229,7 @@
                                  (contains? grammar r)
                                  (process-node grammar y)
                                  :else y))
+        (nil? rule) ()
         :else x))
 
 (defn process-node [grammar [tag x]]
