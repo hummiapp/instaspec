@@ -2,6 +2,6 @@
   (:require [clojure.test :refer [deftest is testing]]
             [instaspec.spec :as is]))
 
-(deftest rule-test
+#_(deftest rule-test
   (is (= (or nil?) (is/rule '(or nil?))))
   (is (= () (is/rule '[a b c]))))

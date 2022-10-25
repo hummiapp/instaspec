@@ -44,17 +44,9 @@
 ;; -- a system of functions that can dispatch themselves
 ;; unnamed things shouldn't be named (predicates)
 
-;; TODO: using `resolve` causes a conflict between parse and rewrite
-;; so using `$` to disambiguate... is there a better way?
-;; TODO: syms is uncommon, will it be O.K.?
-;; TODO: *** can we provide a more semantic ~@(if attrs? [attrs?] []) ???
-
-(defn tree$ [{:syms [tag attrs? element*]}]
-  `[~(if (= :circle tag)
-       :rect tag)
-    ~@(if attrs? [attrs?] [])
-    ~@(map is/rewrite element*)])
-
 (println "** REWRITE **")
 (pprint/pprint
-  (is/rewrite (hiccup-parser svg-data)))
+  (is/rewrite
+    '{tree    (and vector? [~(if (= tag :circle) :rect tag) attrs? element*])
+      literal ()}
+    (hiccup-parser svg-data)))

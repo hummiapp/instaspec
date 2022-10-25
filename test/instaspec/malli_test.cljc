@@ -3,9 +3,7 @@
             [instaspec.malli :as im]))
 
 (deftest rule-test
-  (is (= '[:or nil?] (im/rule '(or nil?))))
-  (is (= '[:catn
-           [a [:schema [:ref "a"]]]
-           [b [:schema [:ref "b"]]]
-           [c [:schema [:ref "c"]]]]
-         (im/rule '[a b c]))))
+  (is (= '[:or nil? int?] (im/rule {} '(or <nil> <int>))))
+  (is (= '[:and vector?
+           [:catn [a any?] [b any?] [c any?]]]
+         (im/rule {} '[a b c]))))

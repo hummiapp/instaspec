@@ -1,71 +1,67 @@
 (ns instaspec.basic-restructuring-test
-  (:require [clojure.string :as str]
-            [clojure.test :refer [deftest is testing]]
+  (:require [clojure.test :refer [deftest is]]
             [instaspec.malli :as ism]))
 
-;; {a 1, b 2, c 3} is a sequence
-;; But, sequence might also just be a vector :(
-;; children is special
+(def hiccup-grammar
+  '{node     (or literal tree)
+    tree     [tag children*]
+    children node
+    tag      <keyword>
+    literal  (or <int> <string>)})
+
+(def svg-data
+  '[:html 2 3 [:body 4]])
+
 (def ast
-  '[tree {tag      :html
-          children [[literal 2]
-                    [literal 3]
-                    [tree {tag      :body
-                           children [[literal 4]]}]]}])
+  '[tree {tag       :html
+          children* [[literal 2]
+                     [literal 3]
+                     [tree {tag       :body
+                            children* [[literal 4]]}]]}])
 
-;; TODO: should be able to parse and translate with the same grammar in and out
-(def identi
-  '{
-    ;; not needed? (should be ignored if present)
-    ;;node     (or literal tree)
-    tree     [tag children]
-    ;; not needed? (should be ignored if present)
-    children node*
-    ;;literal  (or <int> <string>)
-    })
+(deftest ast-test
+  (is (= ast ((ism/parser hiccup-grammar) svg-data))))
 
-(def ts
-  (tree-seq vector? (comp 'children second) ast))
+(deftest traversing-test
+  (is (= 5
+         (count (tree-seq vector? (comp 'children* second) ast)))))
 
 (deftest identity-test
-  (is (= ast
-         (ism/process-node '{node     (or literal tree)
-                             tree     [tag children]
-                             children node*
-                             literal  (or <int> <string>)}
-                           ast))))
+  (is (= svg-data
+         (ism/rewrite '{node     (or literal tree)
+                        tree     [tag children*]
+                        children node
+                        literal  (or <int> <string>)}
+                      ast))))
 
-;; TODO: nil removes, because we don't like trees? what is identity?
-(deftest flatten-test
+#_(deftest flatten-test
   (is (= [:html 2 3 :body 4]
-         (ism/process-node '{tree     [tag children]
-                             children node*
-                             literal  ()}
-                           ast))))
+         (ism/rewrite '{tree [tag children*]
+                        literal  ()}
+                      ast))))
 
-(deftest remove-literals-test
+#_(deftest remove-literals-test
   (is (= [:html :body]
-         (ism/process-node '{tree     [tag children]
-                             children node*
-                             literal  nil}
-                           ast))))
-
-
-;; TODO: use rewrite instead
-(let [fns {'tree (fn [tag children])}])
-(defn start [x]
-  (let [[label y] x]
-
-    (case label
-      'tree
-      'literal)
-    )
-  )
+         (ism/rewrite '{tree     [tag children*]
+                        literal  nil}
+                      ast))))
 
 ;; After parsing data we want to do something with the AST!
 ;; TASKS:
 ;;   count how many literals appear
 ;;   change all literals into spans (return as hiccup)
 ;;   remove literals
-(deftest ttt
-  ())
+
+#_(deftest flatten-alternative-test
+  (let [grammar '{node     (or literal tree)
+                  tree     [tag children]
+                  children node*
+                  literal  (or <int> <string>)}
+        ast ((ism/parser grammar) svg-data)]
+    (prn ast)
+    (is (= [:html 2 3 :body 4]
+           (ism/rewrite '{tree     [tag children]
+                          node     ()
+                          children node*
+                          literal  ()}
+                        ast)))))

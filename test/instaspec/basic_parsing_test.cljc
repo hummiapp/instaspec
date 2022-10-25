@@ -1,8 +1,7 @@
 (ns instaspec.basic-parsing-test
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [instaspec.malli :as ism]
-            [instaspec.test.helper :as h]
-            [malli.core :as ma]))
+            [instaspec.test.helper :as h]))
 
 (use-fixtures :each h/monotone)
 
@@ -10,10 +9,14 @@
   (h/is-parsed '{start <string>}
                "this is a string"
                "this is a string")
-  ;; TODO: should get an excuse
-  (h/is-parsed '{start <string>}
-               1
-               nil))
+  (is (thrown? #?(:clj clojure.lang.ExceptionInfo
+                  :cljs js/Error)
+               (h/is-parsed '{start <string>} 1 nil)))
+  (binding [ism/*parse-fail* (fn [schema data] :fail)]
+    (is (= :fail
+           ((ism/parser '{start <string>}) 1))))
+  (is (false? ((ism/validator '{start <string>}) 1)))
+  (is (true? ((ism/validator '{start <string>}) "this is a string"))))
 
 (deftest collection-parsing-test
   (h/is-parsed '{start [a b c]}
@@ -123,5 +126,4 @@
     '[1 2 3])
 
 (deftest generate-test
-  #_(ism/generate '{start [a b]
-                    b     (c d)}))
+  (is (string? (ism/generate '{start <string>}))))

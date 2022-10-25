@@ -1,6 +1,6 @@
 (ns instaspec.test.helper
   (:require [clojure.pprint :as pprint]
-            [clojure.test :refer [deftest is testing]]
+            [clojure.test :refer [is]]
             [instaspec.malli :as ism]))
 
 (def ^:dynamic *debug* false)

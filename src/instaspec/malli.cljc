@@ -1,13 +1,17 @@
 (ns instaspec.malli
   (:require
-    [clojure.pprint :as pprint]
     [clojure.string :as str]
     [malli.core :as ma]
     [malli.error :as me]
     [malli.generator :as mg]))
 
-(def nesting-prefix "<<-")
+(defn ^:dynamic *parse-fail* [schema data]
+  (let [exp (ma/explain schema data)]
+    (throw (ex-info (str (-> exp me/with-spell-checking me/humanize) \newline
+                         (-> exp (me/error-value {::me/mask-valid-values '...})) \newline)
+                    exp))))
 
+(def nesting-prefix "<<-")
 (def ^:private ^:dynamic *in-a-seqex* false)
 
 (def seq-ops
@@ -179,34 +183,28 @@
     (fn parse [data]
       (let [result (p data)]
         (if (= result ::ma/invalid)
-          (do
-            (println "ERROR:" (-> (ma/explain s data) (me/humanize)))
-            (pprint/pprint (ma/explain s data)))
+          (*parse-fail* s data)
           (lift-nested-names rules result))))))
 
+(defn validator [rules]
+  (let [s (schema rules)
+        v (ma/validator s)]
+    (fn valid? [data]
+      (let [result (v data)]
+        (if (= result ::ma/invalid)
+          (*parse-fail* s data)
+          (lift-nested-names rules result))))))
+
+;; TODO: most grammars fail to generate data
 (defn generate [rules]
   (let [s (schema rules)]
     (mg/generate s)))
-
-;; TODO: should provide a version that only resolves once, when the parser is made
-(defn rewrite [rules node]
-  (if (named-pair? rules node)
-    (let [[label value] node
-          transform (resolve (symbol (str label "$")))]
-      (if transform
-        (transform value)
-        value))
-    node))
-
-(defn rewriter [rules]
-  {:pre [(seq rules) (even? (count rules))]}
-  (comp rewrite (parser rules)))
 
 (defn *? [x]
   (and (symbol? x)
        (str/ends-with? (str x) "*")))
 
-(declare process-node)
+(declare rewrite)
 
 (defn apply-rule [grammar rule x]
   (println "AR" rule x)
@@ -215,26 +213,27 @@
                                          y
                                          [y]))
                                     rule))
-        (seq-op? rule) (process-node grammar (get x rule))
+        (seq-op? rule) (rewrite grammar [rule (get x rule)])
         (name? rule) (let [y (get x rule)
                                r (get grammar rule)]
                            (println "NAME" r y)
                            (cond (*? r)
                                  (vec
-                                   (mapcat #(let [z (process-node grammar %)]
+                                   (mapcat #(let [z (rewrite grammar %)]
                                               (if (sequential? z)
                                                 z
                                                 [z]))
                                            y))
                                  (contains? grammar r)
-                                 (process-node grammar y)
+                                 (rewrite grammar y)
                                  :else y))
         (nil? rule) ()
         :else x))
 
-(defn process-node [grammar [tag x]]
-  (println "PN" tag x)
-  (let [rule (get grammar tag)]
-    (if (*? tag)
-      (map #(process-node grammar %) x)
-      (apply-rule grammar rule x))))
+(defn rewrite [grammar ast]
+  (let [[tag x] ast]
+    (println "RW" tag x)
+    (let [rule (get grammar tag)]
+      (if (*? tag)
+        (mapv #(rewrite grammar %) x)
+        (apply-rule grammar rule x)))))

@@ -138,7 +138,7 @@
   [name doc-string? attr-map? (or arity arities)]]
 ;;'#:clojure{defn #rule[:a]}
 
-(deftest testinit
+#_(deftest testinit
 
   )
 
