@@ -6,7 +6,7 @@
 ;; {a 1, b 2, c 3} is a sequence
 ;; But, sequence might also just be a vector :(
 ;; children is special
-(def labeled-result
+(def ast
   '[tree {tag      :html
           children [[literal 2]
                     [literal 3]
@@ -25,10 +25,15 @@
     })
 
 (def ts
-  (tree-seq vector? (comp 'children second) labeled-result))
+  (tree-seq vector? (comp 'children second) ast))
 
-(declare process-node)
-
+(deftest identity-test
+  (is (= ast
+         (ism/process-node '{node     (or literal tree)
+                             tree     [tag children]
+                             children node*
+                             literal  (or <int> <string>)}
+                           ast))))
 
 ;; TODO: nil removes, because we don't like trees? what is identity?
 (deftest flatten-test
@@ -36,14 +41,14 @@
          (ism/process-node '{tree     [tag children]
                              children node*
                              literal  ()}
-                           labeled-result))))
+                           ast))))
 
 (deftest remove-literals-test
   (is (= [:html :body]
          (ism/process-node '{tree     [tag children]
                              children node*
                              literal  nil}
-                           labeled-result))))
+                           ast))))
 
 
 ;; TODO: use rewrite instead

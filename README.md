@@ -65,8 +65,7 @@ Given some data to parse:
 Grammars are symmetrical, they can take an AST and transform it:
 
 ```clojure
-(is/process-node '{tree     [tag children]
-                   children node*
+(is/process-node '{tree     [tag element*]
                    literal  nil}
                  (hiccup-parser svg-data))
 ;=>
