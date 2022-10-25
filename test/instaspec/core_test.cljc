@@ -130,7 +130,7 @@
     ;; TODO: every? also what's a binding spec?
     ;;params        <bindings>
     prepost       <map>
-    arities       ((arity) + post-metadata?)
+    arities       ((+ (arity)) post-metadata?)
     post-metadata <map>})
 
 '[defn '{arity   ([params*] prepost-map? body)
@@ -141,3 +141,13 @@
 (deftest testinit
 
   )
+
+(defmacro qualify [ns coll]
+  '...)
+
+'[clojure
+  {defn    [name doc? attrs? (arity | arities)]
+   doc     string?
+   attrs   map?
+   arity   ([params*] prepost-map? body)
+   arities ((arity) + attr-map?)}]

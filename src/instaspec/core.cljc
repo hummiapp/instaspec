@@ -3,6 +3,7 @@
   (:require
     [clojure.pprint :as pprint]))
 
+;; TODO: should there be a core at all? users need to choose a specific implementation (spec or malli)
 
 (defmacro match [grammar x r]
   `((:malli-parser ~grammar) ~x))
