@@ -30,11 +30,11 @@ Instaspec is a Clojure(Script) library that requires either Spec or Malli to be 
 
 Choose a prerequisite dependency:
 
-`metosin/malli {:mvn/version &quot;0.8.9&quot;}`
+`metosin/malli {:mvn/version "0.8.9"}`
 
 Add Instaspec as a dependency:
 
-`app.hummi/instaspec {:mvn/version &quot;0.0.1&quot;}`
+`app.hummi/instaspec {:mvn/version "0.0.1"}`
 
 === Parsing
 
@@ -86,9 +86,9 @@ Grammars are symmetrical, they can take an AST and transform it:
 
 [source,clojure]
 ----
-(is/process-node '{tree     [tag element*]
-                   literal  nil}
-                 (hiccup-parser svg-data))
+(is/rewrite '{tree     [tag element*]
+              literal  nil}
+            (hiccup-parser svg-data))
 ;=>
 [:svg :g :rect :rect]
 
@@ -96,11 +96,15 @@ Grammars are symmetrical, they can take an AST and transform it:
 
 In the above example we extract only tags, and remove literals.
 
+TODO: ~ should invoke functions.
+
 TODO: Aggregation can be done by closing over rewrite functions, but it might be nice to have a more friendly version of that. Perhaps everything should be an aggregation, and provide a default for replacement.
 
 TODO: maybe provide several flavors of transformers?
 
-TODO: Instaparse allows users to remove parts of the AST with `&lt;&gt;` annotation. This might be useful?
+TODO: Instaparse allows users to remove parts of the AST with `<>` annotation. This might be useful?
+
+=== How does it work?
 
 Parsing the data binds names from your grammar:
 
@@ -122,9 +126,30 @@ Parsing the data binds names from your grammar:
 
 ----
 
-TODO: Validating
+This is a convenient AST that can be reassembled with `is/rewrite`.
+Normally you shouldn't need to look at the output of `is/parse`.
 
-TODO: Generating
+=== Handling errors
+
+When failing to parse, an `ex-info` is thrown.
+If you prefer some other behavior then rebind the `is/*parse-fail*` function:
+
+[source,clojure]
+----
+(binding [is/*parse-fail* (fn my-fail [schema data]
+                            (println "Oh no, this is bad...")
+                            :fail)]
+  (hiccup-parser svg-data))
+----
+
+=== Validating
+
+Use `is/validator` in the same way you would use `is/parser`.
+A validator only returns true or false.
+
+=== Generating
+
+See `is/generate`.
 
 === Conveniences
 
@@ -137,14 +162,13 @@ Define a function:
 
 ----
 
-Generate values: TODO
-
-== Grammar
+== Grammars
 
 Grammars are data.
 A grammar consists of name, rule pairs (similar to bindings).
 Rules may contain predicates and boolean logic.
-Predicates are identified by resolving the symbol.
+Predicates are identified by `<>`.
+
 Names occurring in sequences treat `?`, `+`, and `*` suffixes as regex operands.
 Names that do not resolve are treated as bindings.
 
@@ -159,18 +183,20 @@ In the example:
   attrs <map>}
 ----
 
-* `&lt;nil&gt;` is a predicate (resolves to the `nil?` function)
+* `<nil>` is a predicate (resolves to the `nil?` function)
 * `attrs?` is the name for an optional value in a sequence
 * `hiccup*` will create a sequence of 0 or more matches
 * `or` is a special operator
 
+Under consideration:
+
+`<nil>|<boolean>` may get mapped to `(or <nil> <boolean>)`
+
 == API
 
-`is/rewrite` is the primary interface to parse and transform with.
+`is/rewrite` is the primary interface to transform with.
 
-`is/parser` creates a parser only. Parsers return a hiccup style tree.
-
-`is/registry` builds the underlying libraries' construction.
+`is/parser` creates a parser only. Parsers return a hiccup abstract syntax tree (AST).
 
 == Rationale
 
