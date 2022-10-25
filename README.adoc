@@ -2,6 +2,10 @@
 
 = Instaspec
 
+++++
+<img src="img/instaspec.png" width=200 align="right" />
+++++
+
 Specify, parse, and transform data in easy-mode.
 
 Instaspec is a concise and easy rule syntax for parsing and transforming data that separates the shape of data from predicates.
@@ -9,10 +13,6 @@ Instaspec is a concise and easy rule syntax for parsing and transforming data th
 Instaspec syntax imitates the comfortable interface of EBNF (ala Instaparse) to describe data.
 Grammars are translated to Specs.
 Transformations are facilitated with a construction helper with the same syntax.
-
-++++
-<img src="img/instaspec.png" width=200 align="right" />
-++++
 
 ____
 
