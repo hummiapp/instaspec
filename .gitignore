@@ -2,6 +2,7 @@
 /target
 /classes
 /checkouts
+/cljs-test-runner-out/
 pom.xml
 pom.xml.asc
 *.jar

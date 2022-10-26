@@ -5,23 +5,13 @@
                          {org.clojure/clojure       {:mvn/version "1.11.1"}
                           org.clojure/clojurescript {:mvn/version "1.11.60"}
                           org.clojure/spec.alpha    {:mvn/version "0.3.218"}
-                          metosin/malli             {:mvn/version "0.9.2"}
-                          binaryage/devtools        {:mvn/version "1.0.6"}}}
+                          metosin/malli             {:mvn/version "0.9.2"}}}
 
-             :test      {:extra-paths ["test"]
-                         :extra-deps
-                         {lambdaisland/kaocha {:mvn/version "1.71.1119"}}
+             :test      {:extra-deps {lambdaisland/kaocha {:mvn/version "1.71.1119"}}
                          :main-opts   ["-m" "kaocha.runner"]}
 
-             :test-cljs {:extra-paths ["test" "target"]
-                         :extra-deps
-                         {com.bhauman/figwheel-main {:mvn/version "0.2.18"}
-                          org.slf4j/slf4j-nop       {:mvn/version "2.0.3"}}
-                         :main-opts
-                         ["-m" "figwheel.main"
-                          "-fwo" "{:launch-js [\"firefox\" \"-headless\" \"http://localhost:9501/figwheel-extra-main/auto-testing\"], :ring-server-options {:port 9501}}"
-                          "--build" "instaspec"
-                          "--serve"]}
+             :test-cljs {:extra-deps  {olical/cljs-test-runner {:mvn/version "3.8.0"}}
+                         :main-opts   ["-m" "cljs-test-runner.main"]}
 
              :lint      {:replace-deps {clj-kondo/clj-kondo {:mvn/version "2022.10.14"}}
                          :main-opts    ["-m" "clj-kondo.main" "--lint" "src" "--lint" "test"]}

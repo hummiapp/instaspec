@@ -1,5 +1,5 @@
 (ns instaspec.basic-parsing-test
-  (:require [clojure.test :refer [deftest is testing use-fixtures]]
+  (:require [clojure.test :refer [deftest is use-fixtures]]
             [instaspec.malli :as ism]
             [instaspec.test.helper :as h]))
 

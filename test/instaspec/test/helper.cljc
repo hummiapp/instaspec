@@ -1,7 +1,7 @@
 (ns instaspec.test.helper
+  #?(:cljs (:require-macros [instaspec.test.helper]))
   (:require [clojure.pprint :as pprint]
-            [clojure.test :refer [is]]
-            [instaspec.malli :as ism]))
+            #?(:clj [clojure.test :refer [is]])))
 
 (def ^:dynamic *debug* false)
 
@@ -17,10 +17,11 @@
     (println "*** " label " ***")
     (pprint/pprint x)))
 
-(defmacro is-parsed [grammar data expected]
-  `(let [s# (ism/schema ~grammar)
-         _# (report "Schema" s#)
-         p# (ism/parser ~grammar)
-         r# (p# ~data)]
-     (report "Result" r#)
-     (is (= ~expected r#))))
+#?(:clj
+   (defmacro is-parsed [grammar data expected]
+     `(let [s# (ism/schema ~grammar)
+            _# (report "Schema" s#)
+            p# (ism/parser ~grammar)
+            r# (p# ~data)]
+        (report "Result" r#)
+        (is (= ~expected r#)))))
