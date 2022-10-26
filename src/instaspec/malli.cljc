@@ -207,21 +207,24 @@
 (declare rewrite)
 
 (defn apply-rule [grammar rule x]
-  (println "AR" rule x)
   (cond (vector? rule) (vec (mapcat #(let [y (apply-rule grammar % x)]
                                        (if (sequential? y)
                                          y
                                          [y]))
                                     rule))
+        (sequential? rule) (doall (mapcat #(let [y (apply-rule grammar % x)]
+                                             (if (sequential? y)
+                                               (flatten y)
+                                               [y]))
+                                          rule))
         (seq-op? rule) (rewrite grammar [rule (get x rule)])
         (name? rule) (let [y (get x rule)
                                r (get grammar rule)]
-                           (println "NAME" r y)
                            (cond (*? r)
                                  (vec
                                    (mapcat #(let [z (rewrite grammar %)]
                                               (if (sequential? z)
-                                                z
+                                                (flatten z)
                                                 [z]))
                                            y))
                                  (contains? grammar r)
@@ -232,7 +235,6 @@
 
 (defn rewrite [grammar ast]
   (let [[tag x] ast]
-    (println "RW" tag x)
     (let [rule (get grammar tag)]
       (if (*? tag)
         (mapv #(rewrite grammar %) x)

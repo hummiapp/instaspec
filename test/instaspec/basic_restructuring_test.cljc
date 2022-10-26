@@ -28,22 +28,20 @@
 
 (deftest identity-test
   (is (= svg-data
-         (ism/rewrite '{node     (or literal tree)
-                        tree     [tag children*]
-                        children node
-                        literal  (or <int> <string>)}
-                      ast))))
-
-#_(deftest flatten-test
-  (is (= [:html 2 3 :body 4]
-         (ism/rewrite '{tree [tag children*]
-                        literal  ()}
-                      ast))))
-
-#_(deftest remove-literals-test
-  (is (= [:html :body]
          (ism/rewrite '{tree     [tag children*]
-                        literal  nil}
+                        literal  :id}
+                      ast))))
+
+(deftest flatten-test
+  (is (= [:html 2 3 :body 4]
+         (ism/rewrite '{tree    (tag children*)
+                        literal :id}
+                      ast))))
+
+(deftest remove-literals-test
+  (is (= '(:html :body)
+         (ism/rewrite '{tree    (tag children*)
+                        literal ()}
                       ast))))
 
 ;; After parsing data we want to do something with the AST!
