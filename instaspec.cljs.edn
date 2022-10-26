@@ -1,0 +1,3 @@
+^{:watch-dirs   ["src" "test"]
+  :auto-testing true}
+{:main instaspec.main}

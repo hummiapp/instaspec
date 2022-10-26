@@ -9,6 +9,8 @@
     tag      <keyword>
     literal  (or <int> <string>)})
 
+(def parse-hiccup (ism/parser hiccup-grammar))
+
 (def svg-data
   '[:html 2 3 [:body 4]])
 
@@ -20,7 +22,7 @@
                             children* [[literal 4]]}]]}])
 
 (deftest ast-test
-  (is (= ast ((ism/parser hiccup-grammar) svg-data))))
+  (is (= ast (parse-hiccup svg-data))))
 
 (deftest traversing-test
   (is (= 5

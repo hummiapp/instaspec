@@ -28,9 +28,9 @@
                                 [x' (str x')])))
         (list? x) (list* (first x)
                          (for [x' (rest x)]
-                           (or (resolve x')
+                           (or #_(resolve x')
                                (str x'))))
-        :else (or (resolve x)
+        :else (or #_(resolve x)
                   x)))
 
 (defn register! [ns rules]
@@ -50,4 +50,4 @@
     (fn parse [x]
       (s/conform start-k x))))
 
-(parser '[a int?])
+#_(parser '[a int?])

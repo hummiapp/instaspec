@@ -5,18 +5,21 @@
 
 (use-fixtures :each h/monotone)
 
+(def parse-string (ism/parser '{start <string>}))
+(def validate-string (ism/validator '{start <string>}))
+
 (deftest predicate-test
   (h/is-parsed '{start <string>}
                "this is a string"
                "this is a string")
   (is (thrown? #?(:clj clojure.lang.ExceptionInfo
                   :cljs js/Error)
-               (h/is-parsed '{start <string>} 1 nil)))
+               (h/is-parsed '{start <string>} 1 :fail)))
   (binding [ism/*parse-fail* (fn [schema data] :fail)]
     (is (= :fail
-           ((ism/parser '{start <string>}) 1))))
-  (is (false? ((ism/validator '{start <string>}) 1)))
-  (is (true? ((ism/validator '{start <string>}) "this is a string"))))
+           (parse-string 1))))
+  (is (false? (validate-string 1)))
+  (is (true? (validate-string "this is a string"))))
 
 (deftest collection-parsing-test
   (h/is-parsed '{start [a b c]}

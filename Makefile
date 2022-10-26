@@ -9,7 +9,8 @@ update:
 	clojure -M:outdated --every --write
 
 test:
-	clojure -M:test
+	clojure -M:dev:test
+	clojure -M:dev:test-cljs
 
 lint:
 	clojure -M:lint
